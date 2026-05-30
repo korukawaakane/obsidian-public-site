@@ -140,12 +140,55 @@ const pages = (await walk(root)).map((relative) => ({
 }));
 const pageByRelative = new Map(pages.map((page) => [page.relative, page]));
 
-const nav = pages
-  .map((page) => {
-    const depth = page.relative.split("/").length - 1;
-    return `<a class="nav-link depth-${Math.min(depth, 3)}" href="${toHref(page.relative)}">${escapeHtml(page.title)}</a>`;
+const topLevelPages = pages.filter((page) => !page.relative.includes("/"));
+const coursePages = pages.filter((page) => page.relative.includes("/"));
+
+const getCourseTitle = (segment) => segment.replace(/^\d{2}-/, "");
+
+const groupedCourses = new Map();
+for (const page of coursePages) {
+  const parts = page.relative.split("/");
+  const course = parts[0];
+  const section = parts.length > 2 ? parts[1] : "课程首页";
+  if (!groupedCourses.has(course)) groupedCourses.set(course, new Map());
+  const sections = groupedCourses.get(course);
+  if (!sections.has(section)) sections.set(section, []);
+  sections.get(section).push(page);
+}
+
+const getDisplayTitle = (page) => {
+  if (!page.relative.endsWith("/index.md")) return page.title;
+  const parts = page.relative.split("/");
+  if (parts.length === 2) return getCourseTitle(parts[0]);
+  return parts.at(-2);
+};
+
+const renderPageLink = (page) =>
+  `<a class="nav-link" href="${toHref(page.relative)}">${escapeHtml(getDisplayTitle(page))}</a>`;
+
+const nav = [
+  `<div class="nav-section"><div class="nav-section-title">总览</div>${topLevelPages.map(renderPageLink).join("\n")}</div>`,
+  ...[...groupedCourses.entries()].map(([course, sections]) => {
+    const sectionLinks = [...sections.entries()]
+      .map(([section, sectionPages]) => {
+        const orderedPages = sectionPages.sort((a, b) => {
+          const aIndex = a.relative.endsWith("/index.md") ? 0 : 1;
+          const bIndex = b.relative.endsWith("/index.md") ? 0 : 1;
+          return aIndex - bIndex || a.title.localeCompare(b.title, "zh-Hans-CN");
+        });
+        return `<details class="nav-subgroup" open>
+  <summary>${escapeHtml(section)}</summary>
+  <div class="nav-subgroup-links">${orderedPages.map(renderPageLink).join("\n")}</div>
+</details>`;
+      })
+      .join("\n");
+
+    return `<details class="nav-group" open>
+  <summary>${escapeHtml(course)} <span>${escapeHtml(getCourseTitle(course))}</span></summary>
+  ${sectionLinks}
+</details>`;
   })
-  .join("\n");
+].join("\n");
 
 const stylesheet = `
 :root {
@@ -180,21 +223,75 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 }
 .brand { display: block; color: var(--ink); text-decoration: none; font-weight: 750; font-size: 20px; line-height: 1.25; }
 .description { margin: 10px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.nav { display: grid; gap: 2px; }
+.nav { display: grid; gap: 12px; }
+.nav-section,
+.nav-group {
+  border-top: 1px solid rgba(32, 33, 36, 0.08);
+  padding-top: 10px;
+}
+.nav-section-title,
+.nav-group > summary {
+  color: var(--accent-strong);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 750;
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 6px 4px;
+}
+.nav-group > summary::-webkit-details-marker,
+.nav-subgroup > summary::-webkit-details-marker { display: none; }
+.nav-group > summary::before {
+  content: "▾";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform 0.16s ease;
+}
+.nav-group:not([open]) > summary::before { transform: rotate(-90deg); }
+.nav-group > summary span {
+  color: var(--muted);
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-left: 20px;
+}
+.nav-subgroup {
+  margin: 4px 0 4px 12px;
+}
+.nav-subgroup > summary {
+  border-radius: 6px;
+  color: #3f4944;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 650;
+  list-style: none;
+  padding: 5px 6px;
+}
+.nav-subgroup > summary::before {
+  content: "▸";
+  color: var(--muted);
+  display: inline-block;
+  margin-right: 5px;
+  transition: transform 0.16s ease;
+}
+.nav-subgroup[open] > summary::before { transform: rotate(90deg); }
+.nav-subgroup > summary:hover { background: rgba(31, 111, 91, 0.08); }
+.nav-subgroup-links {
+  border-left: 1px solid rgba(32, 33, 36, 0.1);
+  margin-left: 12px;
+  padding-left: 8px;
+}
 .nav-link {
   border-radius: 6px;
   color: var(--ink);
   display: block;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.35;
-  padding: 7px 8px;
+  padding: 6px 8px;
   text-decoration: none;
   overflow-wrap: anywhere;
 }
 .nav-link:hover { background: rgba(31, 111, 91, 0.1); color: var(--accent-strong); }
-.depth-1 { padding-left: 18px; }
-.depth-2 { padding-left: 30px; font-size: 13px; }
-.depth-3 { padding-left: 42px; font-size: 13px; }
 .content {
   width: min(920px, calc(100vw - 360px));
   margin: 0 auto;
