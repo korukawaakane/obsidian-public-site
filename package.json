@@ -1,0 +1,16 @@
+{
+  "name": "obsidian-public-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "acane 的学习知识库",
+  "scripts": {
+    "build": "node scripts/build-site.mjs"
+  },
+  "dependencies": {
+    "@highlightjs/cdn-assets": "^11.11.1",
+    "katex": "^0.16.22",
+    "markdown-it": "^14.1.0",
+    "markdown-it-anchor": "^9.2.0"
+  }
+}

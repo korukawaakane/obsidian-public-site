@@ -1,0 +1,13 @@
+node_modules/
+.venv/
+.env
+.env.local
+.DS_Store
+.cache/
+.quartz-cache/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+data/
+output/
+dist/

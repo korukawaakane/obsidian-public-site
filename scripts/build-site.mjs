@@ -1,0 +1,273 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import katex from "katex";
+import MarkdownIt from "markdown-it";
+import markdownItAnchor from "markdown-it-anchor";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const outDir = path.join(root, "dist");
+const siteTitle = "acane 的学习知识库";
+const siteDescription = "数学分析、概率统计、电路基础、大学物理、C++ 与集成电路学习笔记";
+const basePath = "/obsidian-public-site/";
+const ignoredDirs = new Set([".git", ".github", "node_modules", "dist", "scripts"]);
+
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true
+})
+  .use(markdownItMath)
+  .use(markdownItAnchor, {
+    permalink: markdownItAnchor.permalink.headerLink()
+  });
+
+function markdownItMath(markdown) {
+  markdown.inline.ruler.before("escape", "math_inline", (state, silent) => {
+    if (state.src[state.pos] !== "$" || state.src[state.pos + 1] === "$") return false;
+    const end = state.src.indexOf("$", state.pos + 1);
+    if (end < 0) return false;
+    if (!silent) {
+      const token = state.push("math_inline", "math", 0);
+      token.content = state.src.slice(state.pos + 1, end);
+    }
+    state.pos = end + 1;
+    return true;
+  });
+
+  markdown.block.ruler.before("fence", "math_block", (state, startLine, endLine, silent) => {
+    const start = state.bMarks[startLine] + state.tShift[startLine];
+    const max = state.eMarks[startLine];
+    if (state.src.slice(start, max).trim() !== "$$") return false;
+
+    let nextLine = startLine + 1;
+    let content = "";
+    while (nextLine < endLine) {
+      const lineStart = state.bMarks[nextLine] + state.tShift[nextLine];
+      const lineEnd = state.eMarks[nextLine];
+      const line = state.src.slice(lineStart, lineEnd);
+      if (line.trim() === "$$") {
+        if (!silent) {
+          const token = state.push("math_block", "math", 0);
+          token.block = true;
+          token.content = content.trim();
+          token.map = [startLine, nextLine + 1];
+        }
+        state.line = nextLine + 1;
+        return true;
+      }
+      content += `${line}\n`;
+      nextLine += 1;
+    }
+    return false;
+  });
+
+  markdown.renderer.rules.math_inline = (tokens, idx) =>
+    katex.renderToString(tokens[idx].content, { throwOnError: false });
+
+  markdown.renderer.rules.math_block = (tokens, idx) =>
+    `<div class="katex-display">${katex.renderToString(tokens[idx].content, {
+      displayMode: true,
+      throwOnError: false
+    })}</div>\n`;
+}
+
+const escapeHtml = (value) =>
+  String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const trimMd = (file) => file.replace(/\.md$/i, "");
+
+const toRoute = (relativeFile) => {
+  const withoutExt = trimMd(relativeFile).replaceAll("\\", "/");
+  if (withoutExt.toLowerCase() === "index") return "index.html";
+  if (withoutExt.toLowerCase().endsWith("/index")) {
+    return `${withoutExt.slice(0, -"/index".length)}/index.html`;
+  }
+  return `${withoutExt}/index.html`;
+};
+
+const toHref = (relativeFile) =>
+  `${basePath}${toRoute(relativeFile).split("/").map(encodeURIComponent).join("/")}`;
+
+const normalizeWikiTarget = (target) => {
+  const clean = target.split("#")[0].trim();
+  if (!clean) return null;
+  const candidates = [
+    `${clean}.md`,
+    `${clean}/index.md`,
+    ...pages.map((page) => page.relative).filter((relative) => path.basename(trimMd(relative)) === clean)
+  ];
+  return candidates.find((candidate) => pageByRelative.has(candidate.replaceAll("\\", "/"))) ?? null;
+};
+
+const preprocessObsidian = (source) =>
+  source
+    .replace(/!\[\[([^\]]+)\]\]/g, (_, target) => {
+      const label = target.split("|").pop().trim();
+      return `_${escapeHtml(label)}_`;
+    })
+    .replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_, target, label) => {
+      const resolved = normalizeWikiTarget(target);
+      const text = label?.trim() || target.trim();
+      return resolved ? `[${text}](${toHref(resolved)})` : text;
+    });
+
+async function walk(dir) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (entry.name.startsWith(".") && entry.name !== ".github") continue;
+    if (entry.isDirectory() && ignoredDirs.has(entry.name)) continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await walk(full)));
+    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) {
+      files.push(path.relative(root, full).replaceAll("\\", "/"));
+    }
+  }
+  return files.sort((a, b) => a.localeCompare(b, "zh-Hans-CN"));
+}
+
+const pages = (await walk(root)).map((relative) => ({
+  relative,
+  route: toRoute(relative),
+  title: path.basename(trimMd(relative))
+}));
+const pageByRelative = new Map(pages.map((page) => [page.relative, page]));
+
+const nav = pages
+  .map((page) => {
+    const depth = page.relative.split("/").length - 1;
+    return `<a class="nav-link depth-${Math.min(depth, 3)}" href="${toHref(page.relative)}">${escapeHtml(page.title)}</a>`;
+  })
+  .join("\n");
+
+const stylesheet = `
+:root {
+  color-scheme: light;
+  --bg: #f7f6f1;
+  --panel: #ffffff;
+  --ink: #202124;
+  --muted: #6d706c;
+  --line: #dedbd2;
+  --accent: #1f6f5b;
+  --accent-strong: #174f43;
+  --code: #f0eee8;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans SC", sans-serif;
+  line-height: 1.72;
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.shell { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  border-right: 1px solid var(--line);
+  background: #eeece4;
+  padding: 28px 20px;
+}
+.brand { display: block; color: var(--ink); text-decoration: none; font-weight: 750; font-size: 20px; line-height: 1.25; }
+.description { margin: 10px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.nav { display: grid; gap: 2px; }
+.nav-link {
+  border-radius: 6px;
+  color: var(--ink);
+  display: block;
+  font-size: 14px;
+  line-height: 1.35;
+  padding: 7px 8px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.nav-link:hover { background: rgba(31, 111, 91, 0.1); color: var(--accent-strong); }
+.depth-1 { padding-left: 18px; }
+.depth-2 { padding-left: 30px; font-size: 13px; }
+.depth-3 { padding-left: 42px; font-size: 13px; }
+.content {
+  width: min(920px, calc(100vw - 360px));
+  margin: 0 auto;
+  padding: 56px 32px 96px;
+}
+.article-title { font-size: clamp(30px, 4vw, 52px); line-height: 1.12; margin: 0 0 12px; letter-spacing: 0; }
+.article-path { color: var(--muted); margin: 0 0 36px; font-size: 14px; overflow-wrap: anywhere; }
+.markdown h1, .markdown h2, .markdown h3 { line-height: 1.28; margin: 2em 0 0.65em; }
+.markdown h1 { font-size: 34px; }
+.markdown h2 { font-size: 26px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.markdown h3 { font-size: 21px; }
+.markdown p, .markdown ul, .markdown ol, .markdown blockquote, .markdown pre, .markdown table { margin: 1em 0; }
+.markdown img { max-width: 100%; height: auto; }
+.markdown code { background: var(--code); border-radius: 4px; padding: 0.12em 0.32em; font-size: 0.92em; }
+.markdown pre { background: #1f2328; color: #f6f8fa; border-radius: 8px; overflow: auto; padding: 18px; }
+.markdown pre code { background: transparent; color: inherit; padding: 0; }
+.markdown blockquote { border-left: 4px solid var(--accent); color: #4d514d; padding-left: 16px; }
+.markdown table { width: 100%; border-collapse: collapse; display: block; overflow-x: auto; }
+.markdown th, .markdown td { border: 1px solid var(--line); padding: 8px 10px; }
+.markdown th { background: #eeece4; }
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+@media (max-width: 820px) {
+  .shell { display: block; }
+  .sidebar { position: static; height: auto; max-height: 42vh; border-right: 0; border-bottom: 1px solid var(--line); padding: 22px 18px; }
+  .content { width: 100%; padding: 34px 18px 72px; }
+  .article-title { font-size: 32px; }
+}
+`;
+
+const renderPage = (page, html) => `<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(page.title)} | ${escapeHtml(siteTitle)}</title>
+  <meta name="description" content="${escapeHtml(siteDescription)}">
+  <base href="${basePath}">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/katex.min.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="${basePath}">${escapeHtml(siteTitle)}</a>
+      <p class="description">${escapeHtml(siteDescription)}</p>
+      <nav class="nav" aria-label="笔记目录">
+        ${nav}
+      </nav>
+    </aside>
+    <main class="content">
+      <h1 class="article-title">${escapeHtml(page.title)}</h1>
+      <p class="article-path">${escapeHtml(page.relative)}</p>
+      <article class="markdown">${html}</article>
+    </main>
+  </div>
+</body>
+</html>`;
+
+await fs.rm(outDir, { recursive: true, force: true });
+await fs.mkdir(path.join(outDir, "assets"), { recursive: true });
+await fs.writeFile(path.join(outDir, ".nojekyll"), "");
+await fs.writeFile(path.join(outDir, "assets", "styles.css"), stylesheet.trimStart());
+await fs.copyFile(
+  path.join(root, "node_modules", "katex", "dist", "katex.min.css"),
+  path.join(outDir, "assets", "katex.min.css")
+);
+
+for (const page of pages) {
+  const source = await fs.readFile(path.join(root, page.relative), "utf8");
+  const body = md.render(preprocessObsidian(source));
+  const target = path.join(outDir, page.route);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, renderPage(page, body));
+}
+
+console.log(`Built ${pages.length} pages to ${path.relative(root, outDir)}`);
