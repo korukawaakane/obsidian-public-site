@@ -409,28 +409,56 @@ const renderPage = (page, html) => `<!doctype html>
     </main>
   </div>
   <script type="module">
-    import { PagefindUI } from "${basePath}pagefind/pagefind-ui.js";
+    const normalizeBase = (value) => {
+      if (!value) return "/";
+      return value.endsWith("/") ? value : value + "/";
+    };
+    const configuredBase = "${basePath}";
+    const documentBase = document.querySelector("base")?.getAttribute("href") || "/";
+    const candidateBases = [...new Set([configuredBase, documentBase, "/obsidian-public-site/", "/"])]
+      .map(normalizeBase)
+      .map((base) => base + "pagefind/");
 
-    window.addEventListener("DOMContentLoaded", () => {
-      new PagefindUI({
-        element: "#search",
-        bundlePath: "${basePath}pagefind/",
-        showImages: false,
-        showSubResults: true,
-        excerptLength: 32,
-        resetStyles: false,
-        translations: {
-          placeholder: "搜索笔记内容",
-          clear_search: "清空",
-          load_more: "加载更多",
-          search_label: "搜索这个知识库",
-          filters_label: "筛选",
-          zero_results: "没有找到结果",
-          many_results: "[COUNT] 个结果",
-          one_result: "[COUNT] 个结果",
-          searching: "搜索中..."
+    async function loadPagefind() {
+      let lastError;
+      for (const bundlePath of candidateBases) {
+        try {
+          const module = await import(bundlePath + "pagefind-ui.js");
+          return { PagefindUI: module.PagefindUI || window.PagefindUI, bundlePath };
+        } catch (error) {
+          lastError = error;
         }
-      });
+      }
+      throw lastError;
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      const search = document.querySelector("#search");
+      try {
+        const { PagefindUI, bundlePath } = await loadPagefind();
+        new PagefindUI({
+          element: "#search",
+          bundlePath,
+          showImages: false,
+          showSubResults: true,
+          excerptLength: 32,
+          resetStyles: false,
+          translations: {
+            placeholder: "搜索笔记内容",
+            clear_search: "清空",
+            load_more: "加载更多",
+            search_label: "搜索这个知识库",
+            filters_label: "筛选",
+            zero_results: "没有找到结果",
+            many_results: "[COUNT] 个结果",
+            one_result: "[COUNT] 个结果",
+            searching: "搜索中..."
+          }
+        });
+      } catch (error) {
+        console.error("Pagefind search failed to load", error);
+        if (search) search.textContent = "搜索加载失败，请刷新页面";
+      }
     });
   </script>
 </body>
