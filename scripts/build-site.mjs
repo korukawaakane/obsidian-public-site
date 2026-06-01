@@ -223,6 +223,62 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 }
 .brand { display: block; color: var(--ink); text-decoration: none; font-weight: 750; font-size: 20px; line-height: 1.25; }
 .description { margin: 10px 0 24px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.site-search {
+  border-top: 1px solid rgba(32, 33, 36, 0.08);
+  margin: 0 0 16px;
+  padding-top: 14px;
+}
+.search-title {
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 750;
+  margin: 0 0 8px;
+  padding: 0 4px;
+}
+.site-search .pagefind-ui {
+  --pagefind-ui-scale: 0.76;
+  --pagefind-ui-primary: var(--accent);
+  --pagefind-ui-text: var(--ink);
+  --pagefind-ui-background: var(--panel);
+  --pagefind-ui-border: rgba(32, 33, 36, 0.14);
+  --pagefind-ui-tag: #eeece4;
+  --pagefind-ui-border-width: 1px;
+  --pagefind-ui-border-radius: 6px;
+  --pagefind-ui-image-border-radius: 6px;
+  --pagefind-ui-font: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Noto Sans SC", sans-serif;
+}
+.site-search .pagefind-ui__form::before { background-color: var(--muted); opacity: 0.72; }
+.site-search .pagefind-ui__search-input {
+  box-shadow: none;
+  font-weight: 500;
+}
+.site-search .pagefind-ui__drawer {
+  background: #eeece4;
+  border: 1px solid rgba(32, 33, 36, 0.08);
+  border-radius: 8px;
+  margin-top: 8px;
+  max-height: 48vh;
+  overflow: auto;
+  padding: 0 8px;
+}
+.site-search .pagefind-ui__result {
+  border-top: 1px solid rgba(32, 33, 36, 0.1);
+  padding: 12px 0;
+}
+.site-search .pagefind-ui__result-title {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.site-search .pagefind-ui__result-excerpt {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.site-search mark {
+  background: rgba(31, 111, 91, 0.16);
+  color: var(--accent-strong);
+  padding: 0 2px;
+}
 .nav { display: grid; gap: 12px; }
 .nav-section,
 .nav-group {
@@ -331,22 +387,51 @@ const renderPage = (page, html) => `<!doctype html>
   <base href="${basePath}">
   <link rel="stylesheet" href="assets/styles.css">
   <link rel="stylesheet" href="assets/katex.min.css">
+  <link rel="stylesheet" href="pagefind/pagefind-ui.css">
 </head>
 <body>
   <div class="shell">
     <aside class="sidebar">
       <a class="brand" href="${basePath}">${escapeHtml(siteTitle)}</a>
       <p class="description">${escapeHtml(siteDescription)}</p>
+      <section class="site-search" aria-label="全文搜索">
+        <div class="search-title">搜索</div>
+        <div id="search"></div>
+      </section>
       <nav class="nav" aria-label="笔记目录">
         ${nav}
       </nav>
     </aside>
-    <main class="content">
+    <main class="content" data-pagefind-body>
       <h1 class="article-title">${escapeHtml(page.title)}</h1>
       <p class="article-path">${escapeHtml(page.relative)}</p>
       <article class="markdown">${html}</article>
     </main>
   </div>
+  <script type="module">
+    import { PagefindUI } from "${basePath}pagefind/pagefind-ui.js";
+
+    window.addEventListener("DOMContentLoaded", () => {
+      new PagefindUI({
+        element: "#search",
+        showImages: false,
+        showSubResults: true,
+        excerptLength: 32,
+        resetStyles: false,
+        translations: {
+          placeholder: "搜索笔记内容",
+          clear_search: "清空",
+          load_more: "加载更多",
+          search_label: "搜索这个知识库",
+          filters_label: "筛选",
+          zero_results: "没有找到结果",
+          many_results: "[COUNT] 个结果",
+          one_result: "[COUNT] 个结果",
+          searching: "搜索中..."
+        }
+      });
+    });
+  </script>
 </body>
 </html>`;
 
