@@ -414,6 +414,7 @@ const renderPage = (page, html) => `<!doctype html>
     window.addEventListener("DOMContentLoaded", () => {
       new PagefindUI({
         element: "#search",
+        bundlePath: "${basePath}pagefind/",
         showImages: false,
         showSubResults: true,
         excerptLength: 32,
