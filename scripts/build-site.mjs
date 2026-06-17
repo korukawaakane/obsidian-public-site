@@ -22,6 +22,8 @@ const md = new MarkdownIt({
     permalink: markdownItAnchor.permalink.headerLink()
   });
 
+const katexOptions = { throwOnError: false, strict: false };
+
 function markdownItMath(markdown) {
   markdown.inline.ruler.before("escape", "math_inline", (state, silent) => {
     if (state.src[state.pos] !== "$" || state.src[state.pos + 1] === "$") return false;
@@ -63,12 +65,12 @@ function markdownItMath(markdown) {
   });
 
   markdown.renderer.rules.math_inline = (tokens, idx) =>
-    katex.renderToString(tokens[idx].content, { throwOnError: false });
+    katex.renderToString(tokens[idx].content, katexOptions);
 
   markdown.renderer.rules.math_block = (tokens, idx) =>
     `<div class="katex-display">${katex.renderToString(tokens[idx].content, {
+      ...katexOptions,
       displayMode: true,
-      throwOnError: false
     })}</div>\n`;
 }
 

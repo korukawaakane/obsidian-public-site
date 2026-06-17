@@ -1,12 +1,3 @@
----
-type: problem-card
-course: 数学分析
-chapter: 第8章 无穷级数
-tags:
-  - 题型
-  - Taylor展开
----
-
 # Taylor展开求高阶导数
 
 ## 题目
@@ -89,8 +80,8 @@ $$
 
 ## 相关双链
 
-[[Taylor展开]]
-[[Maclaurin 展开]]
-[[高阶导数]]
-[[e^x 展开式]]
+[[01-数学分析/无穷级数/Taylor展开|Taylor展开]]
+[[01-数学分析/无穷级数/Maclaurin 展开|Maclaurin 展开]]
+高阶导数
+[[01-数学分析/无穷级数/e^x 展开式|e^x 展开式]]
 

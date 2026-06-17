@@ -1,12 +1,3 @@
----
-type: problem-card
-course: 数学分析
-chapter: 第8章 无穷级数
-tags:
-  - 题型
-  - Taylor展开
----
-
 # arctan复合函数Maclaurin展开
 
 ## 题目
@@ -51,7 +42,7 @@ $$
 f(x)=\frac{\pi}{4}+\arctan\frac{x^2}{4}
 $$
 
-再用 [[arctan x 展开式]]：
+再用 [[01-数学分析/无穷级数/arctan x 展开式|arctan x 展开式]]：
 
 $$
 f(x)
@@ -77,8 +68,8 @@ $$
 
 ## 相关双链
 
-[[arctan x 展开式]]
-[[Maclaurin 展开]]
-[[Taylor展开]]
-[[习题8.3.6-Maclaurin展开]]
+[[01-数学分析/无穷级数/arctan x 展开式|arctan x 展开式]]
+[[01-数学分析/无穷级数/Maclaurin 展开|Maclaurin 展开]]
+[[01-数学分析/无穷级数/Taylor展开|Taylor展开]]
+[[01-数学分析/题型卡片/习题8.3.6-Maclaurin展开|习题8.3.6-Maclaurin展开]]
 

@@ -1,16 +1,7 @@
-﻿---
-type: concept
-course: 数学分析
-chapter: 积分不等式
-status: 待复习
-tags:
-  - 知识点/核心
----
-
 # 积分型Cauchy-Schwarz不等式
 
 ## 1. 一句话定义
-[[积分型Cauchy-Schwarz不等式]]是 Cauchy-Schwarz 不等式在函数内积中的形式。
+[[01-数学分析/曲线积分与曲面积分/积分型Cauchy-Schwarz不等式|积分型Cauchy-Schwarz不等式]]是 Cauchy-Schwarz 不等式在函数内积中的形式。
 
 ## 2. 公式
 $$
@@ -28,6 +19,6 @@ $$
 $$
 
 ## 4. 相关链接
-- [[Cauchy-Schwarz不等式]]
-- [[积分不等式]]
+- [[01-数学分析/曲线积分与曲面积分/Cauchy-Schwarz不等式|Cauchy-Schwarz不等式]]
+- [[01-数学分析/曲线积分与曲面积分/积分不等式|积分不等式]]
 
